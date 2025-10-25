@@ -53,31 +53,28 @@
 /********************** macros and definitions *******************************/
 
 
-#define G_APP_CNT_INI		0ul
-#define G_APP_TICK_CNT_INI	0ul
+#define G_APP_CNT_INI       0ul
+#define G_APP_TICK_CNT_INI  0ul
 
-#define TASK_X_WCET_INI		0ul
+#define TASK_X_WCET_INI     0ul
 
 typedef struct {
-	void (*task_init)(void *);		// Pointer to task (must be a
-									// 'void (void *)' function)
-	void (*task_update)(void *);	// Pointer to task (must be a
-									// 'void (void *)' function)
-	void *parameters;				// Pointer to parameters
+	void (*task_init)(void *);
+	void (*task_update)(void *);
+	void *parameters;
 } task_cfg_t;
 
 typedef struct {
-    uint32_t WCET;			// Worst-case execution time (microseconds)
+    uint32_t WCET;
 } task_dta_t;
 
 /********************** internal data declaration ****************************/
-
 
 shared_data_type shared_data;
 
 const task_cfg_t task_cfg_list[]	= {
 		{task_adc_init, task_adc_update, &shared_data},
-		{task_pwm_init,	task_pwm_update, &shared_data},
+		{task_pwm_init, task_pwm_update, &shared_data},
 };
 
 #define TASK_QTY (sizeof(task_cfg_list)/sizeof(task_cfg_t))
@@ -86,13 +83,10 @@ const task_cfg_t task_cfg_list[]	= {
 
 /********************** internal data definition *****************************/
 
-
-const char *p_sys	= " Bare Metal - Event-Triggered Systems (ETS)\n";
-const char *p_app	= " ADC + PWM\n";
-
+const char *p_sys = " Bare Metal - Event-Triggered Systems (ETS)\n";
+const char *p_app = " ADC + PWM\n";
 
 /********************** external data declaration *****************************/
-
 
 uint32_t g_app_cnt;
 uint32_t g_app_time_us;
@@ -104,82 +98,77 @@ task_dta_t task_dta_list[TASK_QTY];
 
 void app_init(void)
 {
-	uint32_t index;
+    uint32_t index;
 
-	/* Print out: Application Initialized */
-	LOGGER_LOG("\n");
-	LOGGER_LOG("%s is running - Tick [mS] = %lu\r\n", GET_NAME(app_init), HAL_GetTick());
+    /* Print out: Application Initialized */
+    LOGGER_LOG("\n");
+    LOGGER_LOG("%s is running - Tick [mS] = %lu\r\n", GET_NAME(app_init), HAL_GetTick());
 
-	LOGGER_LOG(p_sys);
-	LOGGER_LOG(p_app);
+    LOGGER_LOG(p_sys);
+    LOGGER_LOG(p_app);
 
-	g_app_cnt = G_APP_CNT_INI;
+    g_app_cnt = G_APP_CNT_INI;
 
-	/* Print out: Application execution counter */
-	LOGGER_LOG(" %s = %lu\n", GET_NAME(g_app_cnt), g_app_cnt);
+    /* Print out: Application execution counter */
+    LOGGER_LOG(" %s = %lu\n", GET_NAME(g_app_cnt), g_app_cnt);
 
-	/* Go through the task arrays */
-	for (index = 0; TASK_QTY > index; index++)
-	{
+    /* Go through the task arrays */
+    for (index = 0; TASK_QTY > index; index++)
+    {
+        /* Run task_x_init */
+        (*task_cfg_list[index].task_init)(task_cfg_list[index].parameters);
 
-		/* Run task_x_init */
-		(*task_cfg_list[index].task_init)(task_cfg_list[index].parameters);
+        /* Init variables */
+        task_dta_list[index].WCET = TASK_X_WCET_INI;
+    }
 
-		/* Init variables */
-		task_dta_list[index].WCET = TASK_X_WCET_INI;
-	}
-
-	cycle_counter_init();
+    cycle_counter_init();
 }
 
 void app_update(void)
 {
+    uint32_t index;
+    //uint32_t cycle_counter;
+    uint32_t cycle_counter_time_us;
 
-	uint32_t index;
-	//uint32_t cycle_counter;
-	uint32_t cycle_counter_time_us;
-
-	/* Check if it's time to run tasks */
-	if (G_APP_TICK_CNT_INI < g_app_tick_cnt)
+    /* Check if it's time to run tasks */
+    if (G_APP_TICK_CNT_INI < g_app_tick_cnt)
     {
+        g_app_tick_cnt--;
 
-    	g_app_tick_cnt--;
+        /* Update App Counter */
+        g_app_cnt++;
+        g_app_time_us = 0;
 
-    	/* Update App Counter */
-    	g_app_cnt++;
-    	g_app_time_us = 0;
+        /* Print out: Application execution counter */
+        //LOGGER_LOG(" %s = %lu\r\n", GET_NAME(g_app_cnt), g_app_cnt);
 
-		/* Print out: Application execution counter */
-		//LOGGER_LOG(" %s = %lu\r\n", GET_NAME(g_app_cnt), g_app_cnt);
+        /* Go through the task arrays */
+        for (index = 0; TASK_QTY > index; index++)
+        {
+            cycle_counter_reset();
 
-		/* Go through the task arrays */
-		for (index = 0; TASK_QTY > index; index++)
-		{
-
-			cycle_counter_reset();
-
-			/* Run task_x_update */
-			(*task_cfg_list[index].task_update)(task_cfg_list[index].parameters);
+            /* Run task_x_update */
+            (*task_cfg_list[index].task_update)(task_cfg_list[index].parameters);
 
 
-			//cycle_counter = cycle_counter_get();
-			cycle_counter_time_us = cycle_counter_time_us();
+            //cycle_counter = cycle_counter_get();
+            cycle_counter_time_us = cycle_counter_time_us();
 
-			/* Update variables */
-			g_app_time_us += cycle_counter_time_us;
+            /* Update variables */
+            g_app_time_us += cycle_counter_time_us;
 
-			if (task_dta_list[index].WCET < cycle_counter_time_us)
-			{
-				task_dta_list[index].WCET = cycle_counter_time_us;
-			}
+            if (task_dta_list[index].WCET < cycle_counter_time_us)
+            {
+                task_dta_list[index].WCET = cycle_counter_time_us;
+            }
 
+            /* Print out: Cycle Counter */
+            //LOGGER_LOG(" %s: %lu - %s: %lu uS\r\n", GET_NAME(cycle_counter), cycle_counter, GET_NAME(cycle_counter_time_us), cycle_counter_time_us);
+            //LOGGER_LOG(" %s: %lu uS\r\n", GET_NAME(g_app_time_us), g_app_time_us);
+        }
 
-			/* Print out: Cycle Counter */
-			//LOGGER_LOG(" %s: %lu - %s: %lu uS\r\n", GET_NAME(cycle_counter), cycle_counter, GET_NAME(cycle_counter_time_us), cycle_counter_time_us);
-			//LOGGER_LOG(" %s: %lu uS\r\n", GET_NAME(g_app_time_us), g_app_time_us);
-		}
-
-		LOGGER_LOG("%d,%d\n", shared_data.pwm_active, shared_data.adc_value);
+        LOGGER_LOG("%d,%d\n", shared_data.pwm_active, shared_data.adc_value);
     }
 }
 
@@ -195,10 +184,6 @@ void app_update(void)
 void HAL_SYSTICK_Callback(void)
 {
 	g_app_tick_cnt++;
-
-
-
-	//HAL_GPIO_TogglePin(LED_A_PORT, LED_A_PIN);
 }
 
 /********************** end of file ******************************************/

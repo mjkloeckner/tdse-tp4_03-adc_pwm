@@ -47,10 +47,11 @@
 /* Application & Tasks includes. */
 #include "board.h"
 #include "app.h"
+#include <math.h>
 
 /********************** macros and definitions *******************************/
 
-#define STEP (2048)
+#define STEP (32)
 #define PERIOD (65535)
 
 /********************** internal data declaration ****************************/
@@ -62,61 +63,60 @@ void setPWM(TIM_HandleTypeDef timer,
             uint16_t pulse);
 
 /********************** internal data definition *****************************/
-const char *p_task_pwm 		= "Task PWM";
+const char *p_task_pwm = "Task PWM";
 
 /********************** external data declaration *****************************/
 extern TIM_HandleTypeDef htim3;
 
-
 /********************** external functions definition ************************/
 void task_pwm_init(void *parameters)
 {
-	shared_data_type *shared_data = (shared_data_type *) parameters;
+    shared_data_type *shared_data = (shared_data_type *) parameters;
 
-	shared_data->pwm_active = 0;
-	/* Print out: Task Initialized */
-	LOGGER_LOG("  %s is running - %s\r\n", GET_NAME(task_pwm_init), p_task_pwm);
+    shared_data->pwm_active = 0;
+    LOGGER_LOG("  %s is running - %s\r\n", GET_NAME(task_pwm_init), p_task_pwm);
 }
+
+#define min(a, b) a < b ? a : b
+#define max(a, b) a > b ? a : b
+
 
 void task_pwm_update(void *parameters)
 {
+	float x_norm;
+    shared_data_type *data = (shared_data_type *) parameters;
 
-	static uint16_t period=PERIOD;
-	static int16_t step = STEP;
+    if (data->adc_end_of_conversion)
+    {
+        data->adc_end_of_conversion = false;
+        uint32_t x = data->adc_value;
 
-	shared_data_type *shared_data = (shared_data_type *) parameters;
+        // se mapea el valor leido de adc al intervalo [0, 1]
+        x_norm = ((float)x/4096);
 
-	if ( shared_data->adc_end_of_conversion ) {
-		shared_data->adc_end_of_conversion = false;
-		setPWM(htim3, TIM_CHANNEL_1, period, shared_data->pwm_active);
-		if ( step>0 ) {
-			if ( period-step<=shared_data->pwm_active ) {
-				step = step * -1;
-			}
-		}
-		else {
-			if ( abs(step)>=shared_data->pwm_active ) {
-				step = step * -1;
-			}
-		}
-		shared_data->pwm_active = shared_data->pwm_active + step;
-	}
+        // se mapea el valor normalizado elevado a la sexta
+        // al intervalo en y [0, PERIODO] esto porque el LED
+        // no tiene un comportamiento lineal
+        data->pwm_active = PERIOD*powf(x_norm, 6);
+
+        setPWM(htim3, TIM_CHANNEL_1, PERIOD, data->pwm_active);
+    }
 }
 
-
 void setPWM(TIM_HandleTypeDef timer, uint32_t channel,
-            uint16_t period, uint16_t pulse) {
-  HAL_TIM_PWM_Stop(&timer, channel);
-  TIM_OC_InitTypeDef sConfigOC;
-  timer.Init.Period = period;
-  HAL_TIM_PWM_Init(&timer);
+        uint16_t period, uint16_t pulse)
+{
+    HAL_TIM_PWM_Stop(&timer, channel);
+    TIM_OC_InitTypeDef sConfigOC;
+    timer.Init.Period = period;
+    HAL_TIM_PWM_Init(&timer);
 
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = pulse;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  HAL_TIM_PWM_ConfigChannel(&timer, &sConfigOC, channel);
-  HAL_TIM_PWM_Start(&timer,channel);
+    sConfigOC.OCMode = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse = pulse;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    HAL_TIM_PWM_ConfigChannel(&timer, &sConfigOC, channel);
+    HAL_TIM_PWM_Start(&timer, channel);
 }
 
 /********************** end of file ******************************************/

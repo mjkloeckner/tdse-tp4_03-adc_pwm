@@ -54,7 +54,7 @@
 /********************** internal functions declaration ***********************/
 
 /********************** internal data definition *****************************/
-const char *p_task_dummy 		= "Task Dummy";
+const char *p_task_dummy = "Task Dummy";
 
 /********************** external data declaration *****************************/
 
