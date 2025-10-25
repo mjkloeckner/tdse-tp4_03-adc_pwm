@@ -92,13 +92,21 @@ void task_adc_update(void *parameters)
 
 // Requests start of conversion, waits until conversion done
 HAL_StatusTypeDef ADC_Poll_Read(uint16_t *value) {
-    // HAL_StatusTypeDef res;
+    HAL_StatusTypeDef res;
     uint32_t sum = 0;
 
     for (int i = 0; i < ADC_AVG_SAMPLES; i++)
     {
-        HAL_ADC_Start(&hadc1);
-        HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+        if ((res = HAL_ADC_Start(&hadc1)) != HAL_OK)
+        {
+            return res;
+        }
+
+        if ((res = HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY)) != HAL_OK)
+        {
+            return res;
+        }
+
         sum += HAL_ADC_GetValue(&hadc1);
         HAL_ADC_Stop(&hadc1);
     }
