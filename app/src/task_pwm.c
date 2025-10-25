@@ -85,7 +85,9 @@ void task_pwm_update(void *parameters)
     if (data->adc_end_of_conversion)
     {
         data->adc_end_of_conversion = false;
-        uint32_t x = data->adc_value;
+
+        // se descarta el ultimo digito del valor leido del adc
+        uint32_t x = (data->adc_value / 10) * 10;
 
         // se mapea el valor leido de adc al intervalo [0, 1]
         x_norm = ((float)x/4096);
