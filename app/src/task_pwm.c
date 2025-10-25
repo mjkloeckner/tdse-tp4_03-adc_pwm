@@ -77,13 +77,9 @@ void task_pwm_init(void *parameters)
     LOGGER_LOG("  %s is running - %s\r\n", GET_NAME(task_pwm_init), p_task_pwm);
 }
 
-#define min(a, b) a < b ? a : b
-#define max(a, b) a > b ? a : b
-
-
 void task_pwm_update(void *parameters)
 {
-	float x_norm;
+    float x_norm;
     shared_data_type *data = (shared_data_type *) parameters;
 
     if (data->adc_end_of_conversion)

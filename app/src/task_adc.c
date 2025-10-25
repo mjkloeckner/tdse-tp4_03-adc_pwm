@@ -99,7 +99,7 @@ HAL_StatusTypeDef ADC_Poll_Read(uint16_t *value) {
     {
         HAL_ADC_Start(&hadc1);
         HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-		sum += HAL_ADC_GetValue(&hadc1);
+        sum += HAL_ADC_GetValue(&hadc1);
         HAL_ADC_Stop(&hadc1);
     }
 
