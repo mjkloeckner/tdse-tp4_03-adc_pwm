@@ -103,17 +103,6 @@ HAL_StatusTypeDef ADC_Poll_Read(uint16_t *value) {
         HAL_ADC_Stop(&hadc1);
     }
 
-    /*
-    res = HAL_ADC_Start(&hadc1);
-    if (HAL_OK == res)
-    {
-        res = HAL_ADC_PollForConversion(&hadc1, 0);
-        if (HAL_OK == res) 
-        {
-            *value = HAL_ADC_GetValue(&hadc1);
-        }
-    }
-    */
     *value = (sum / ADC_AVG_SAMPLES);
     return HAL_OK;
 }
